@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DocFilters from '../components/DocFilters';
+import { getCategories, getPublishedDocs, getTags } from '../lib/docs';
+
+const docs = await getPublishedDocs();
+const docSummaries = docs.map((entry) => ({
+  title: entry.data.title,
+  slug: entry.data.slug,
+  summary: entry.data.summary,
+  category: entry.data.category,
+  tags: entry.data.tags,
+  updatedAt: entry.data.updatedAt ?? entry.data.publishedAt,
+}));
+---
+
+<BaseLayout title="文档库 | Farmerville" description="筛选、浏览并进入 PDF 在线阅读。">
+  <section class="section-block section-block--tight">
+    <div class="section-heading">
+      <div>
+        <p class="section-kicker">文档库</p>
+        <h1>按标题、分类、标签筛选公开 PDF。</h1>
+      </div>
+    </div>
+
+    <DocFilters
+      client:load
+      docs={docSummaries}
+      categories={getCategories(docs)}
+      tags={getTags(docs)}
+    />
+  </section>
+</BaseLayout>
