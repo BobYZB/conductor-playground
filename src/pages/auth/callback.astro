@@ -1,0 +1,10 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AuthCallback from '../../components/AuthCallback';
+---
+
+<BaseLayout title="登录回调 | Farmerville" description="正在完成登录并恢复你的阅读进度。">
+  <section class="section-block section-block--tight">
+    <AuthCallback client:load />
+  </section>
+</BaseLayout>

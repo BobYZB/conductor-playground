@@ -1,0 +1,34 @@
+---
+import { formatDate } from '../lib/format';
+import { withBase } from '../lib/paths';
+
+interface Props {
+  title: string;
+  slug: string;
+  summary: string;
+  category: string;
+  tags: string[];
+  updatedAt?: string;
+}
+
+const { title, slug, summary, category, tags, updatedAt } = Astro.props;
+---
+
+<article class="doc-card">
+  <div class="doc-card__hero">
+    <span>{category}</span>
+  </div>
+  <div class="doc-card__body">
+    <p class="doc-card__eyebrow">{category}</p>
+    <h3>
+      <a href={withBase(`/docs/${slug}/`)}>{title}</a>
+    </h3>
+    <p class="doc-card__summary">{summary}</p>
+    <div class="tag-row">
+      {tags.map((tag) => <span class="tag-chip">{tag}</span>)}
+    </div>
+  </div>
+  <footer class="doc-card__meta">
+    <span>更新于 {formatDate(updatedAt)}</span>
+  </footer>
+</article>

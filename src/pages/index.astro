@@ -1,0 +1,89 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DocCard from '../components/DocCard.astro';
+import { getFeaturedDocs, getPublishedDocs } from '../lib/docs';
+import { withBase } from '../lib/paths';
+
+const docs = await getPublishedDocs();
+const featuredDocs = getFeaturedDocs(docs);
+const recentDocs = docs.slice(0, 6);
+const displayFeatured = featuredDocs.length > 0 ? featuredDocs.slice(0, 3) : recentDocs.slice(0, 3);
+---
+
+<BaseLayout title="Farmerville 文档果园" description="公开的 PDF 文档库，支持站内阅读和阅读进度同步。">
+  <section class="hero">
+    <div class="hero__copy">
+      <p class="section-kicker">公开文档站 / PDF Reading Garden</p>
+      <h1>把 PDF 变成一座可漫游、可续读的文档果园。</h1>
+      <p class="hero__lede">
+        首页负责挑选与归档，详情页负责沉浸阅读。访客无需登录即可浏览，登录后可跨设备继续阅读。
+      </p>
+      <div class="hero__actions">
+        <a class="button button--primary" href={withBase('/library/')}>进入文档库</a>
+        <a class="button button--secondary" href={withBase('/docs/example-pdf/')}>查看示例文档</a>
+      </div>
+    </div>
+
+    <div class="hero__panel">
+      <div class="stat-card">
+        <span class="stat-card__label">当前公开文档</span>
+        <strong>{docs.length}</strong>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card__label">精选阅读入口</span>
+        <strong>{displayFeatured.length}</strong>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card__label">首版文档类型</span>
+        <strong>PDF</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="section-heading">
+      <div>
+        <p class="section-kicker">精选入口</p>
+        <h2>先从几份代表性文档开始逛。</h2>
+      </div>
+      <a class="section-link" href={withBase('/library/')}>查看全部</a>
+    </div>
+
+    <div class="card-grid">
+      {displayFeatured.map((entry) => (
+        <DocCard
+          title={entry.data.title}
+          slug={entry.data.slug}
+          summary={entry.data.summary}
+          category={entry.data.category}
+          tags={entry.data.tags}
+          updatedAt={entry.data.updatedAt ?? entry.data.publishedAt}
+        />
+      ))}
+    </div>
+  </section>
+
+  <section class="section-block section-block--muted">
+    <div class="section-heading">
+      <div>
+        <p class="section-kicker">阅读方式</p>
+        <h2>首版围绕“拿起就读、下次继续”设计。</h2>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card">
+        <h3>文档库视角</h3>
+        <p>按标题、分类、标签筛选，快速缩小阅读范围。</p>
+      </article>
+      <article class="feature-card">
+        <h3>站内 PDF 阅读</h3>
+        <p>在详情页直接翻页、缩放，并可随时打开原始 PDF。</p>
+      </article>
+      <article class="feature-card">
+        <h3>跨设备续读</h3>
+        <p>通过邮箱魔法链接登录后，自动恢复到上次阅读页码。</p>
+      </article>
+    </div>
+  </section>
+</BaseLayout>

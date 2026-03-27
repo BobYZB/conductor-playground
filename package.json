@@ -1,0 +1,31 @@
+{
+  "name": "farmerville",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "validate": "node scripts/validate-docs.mjs",
+    "doc:new": "node scripts/new-doc.mjs",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^5.0.2",
+    "@supabase/supabase-js": "^2.100.1",
+    "astro": "^6.1.1",
+    "gray-matter": "^4.0.3",
+    "pdfjs-dist": "^5.5.207",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}

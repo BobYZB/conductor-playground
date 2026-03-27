@@ -1,0 +1,34 @@
+---
+import SiteFooter from '../components/SiteFooter.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const {
+  title,
+  description = '一个公开的 PDF 文档花园，支持站内阅读与跨设备同步进度。',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="page-shell">
+      <SiteHeader />
+      <main class="page-content">
+        <slot />
+      </main>
+      <SiteFooter />
+    </div>
+  </body>
+</html>

@@ -1,0 +1,56 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PdfViewer from '../../components/PdfViewer';
+import { formatDate } from '../../lib/format';
+import { withBase } from '../../lib/paths';
+
+export async function getStaticPaths() {
+  const docs = await getCollection(
+    'docs',
+    ({ data }) => !data.draft && data.docType === 'pdf' && Boolean(data.pdfPath),
+  );
+
+  return docs.map((entry) => ({
+    params: { slug: entry.data.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const pdfUrl = withBase(entry.data.pdfPath ?? '');
+---
+
+<BaseLayout title={`${entry.data.title} | Farmerville`} description={entry.data.summary}>
+  <section class="doc-hero">
+    <div class="doc-hero__content">
+      <p class="section-kicker">{entry.data.category}</p>
+      <h1>{entry.data.title}</h1>
+      <p class="doc-hero__summary">{entry.data.summary}</p>
+      <div class="doc-meta">
+        <span>发布时间：{formatDate(entry.data.publishedAt)}</span>
+        <span>最近更新：{formatDate(entry.data.updatedAt ?? entry.data.publishedAt)}</span>
+      </div>
+      <div class="tag-row">
+        {entry.data.tags.map((tag) => <span class="tag-chip">{tag}</span>)}
+      </div>
+      <div class="hero__actions">
+        <a class="button button--primary" href={pdfUrl} target="_blank" rel="noreferrer">打开原始 PDF</a>
+        <a class="button button--secondary" href={withBase('/library/')}>返回文档库</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc-layout">
+    <article class="doc-layout__content">
+      <div class="rich-copy">
+        <Content />
+      </div>
+    </article>
+
+    <section class="reader-panel">
+      <PdfViewer client:load pdfUrl={pdfUrl} docSlug={entry.data.slug} title={entry.data.title} />
+    </section>
+  </section>
+</BaseLayout>
