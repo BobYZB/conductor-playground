@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AUTH_RETURN_TO_KEY, finishAuthFromUrl, isSupabaseConfigured } from '../lib/supabase';
-import { withBase } from '../lib/paths';
+import { AUTH_RETURN_TO_KEY, finishAuthFromUrl, getDefaultPostAuthUrl, isSupabaseConfigured } from '../lib/supabase';
 
 export default function AuthCallback() {
   const [message, setMessage] = useState('正在完成登录...');
@@ -23,8 +22,7 @@ export default function AuthCallback() {
 
         setMessage('登录成功，正在返回你刚才的阅读位置...');
 
-        const nextLocation =
-          window.localStorage.getItem(AUTH_RETURN_TO_KEY) ?? new URL(withBase('/library/'), window.location.origin).toString();
+        const nextLocation = window.localStorage.getItem(AUTH_RETURN_TO_KEY) ?? getDefaultPostAuthUrl();
 
         window.localStorage.removeItem(AUTH_RETURN_TO_KEY);
         window.setTimeout(() => {

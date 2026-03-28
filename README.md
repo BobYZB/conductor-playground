@@ -25,9 +25,12 @@ npm run doc:new
 ```bash
 PUBLIC_SUPABASE_URL=
 PUBLIC_SUPABASE_ANON_KEY=
+PUBLIC_AUTH_REDIRECT_URL=
 ```
 
 未配置 Supabase 时，站点仍可浏览 PDF，但不会启用登录和跨设备阅读进度同步。
+
+`PUBLIC_AUTH_REDIRECT_URL` 可选。默认会使用当前访问域名拼出 `/auth/callback`，适合纯本地调试；如果你在本地预览页面，但希望邮件里的登录链接跳回线上站点，请把它设成完整回调地址，例如 `https://<your-domain>/farmerville/auth/callback`。
 
 ## 新增文档
 
@@ -58,4 +61,5 @@ PUBLIC_SUPABASE_ANON_KEY=
 3. 将站点回调地址配置为：
    - `http://localhost:4321/farmerville/auth/callback`
    - 你的 GitHub Pages 线上地址 `/farmerville/auth/callback`
+   - 如果设置了 `PUBLIC_AUTH_REDIRECT_URL`，把这个完整地址也加入 Supabase Redirect URLs
 4. 执行 `supabase/schema.sql`
