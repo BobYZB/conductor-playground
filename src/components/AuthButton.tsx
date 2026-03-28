@@ -2,13 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import {
   AUTH_RETURN_TO_KEY,
+  getAuthCallbackUrl,
   getCurrentUser,
   isSupabaseConfigured,
   onAuthStateChange,
   signInWithMagicLink,
   signOut,
 } from '../lib/supabase';
-import { withBase } from '../lib/paths';
 
 export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
@@ -61,7 +61,7 @@ export default function AuthButton() {
       setBusy(true);
       setMessage(null);
       window.localStorage.setItem(AUTH_RETURN_TO_KEY, window.location.href);
-      await signInWithMagicLink(email.trim(), new URL(withBase('/auth/callback/'), window.location.origin).toString());
+      await signInWithMagicLink(email.trim(), getAuthCallbackUrl());
       setMessage('魔法链接已发送，请在邮箱中完成登录。');
       setShowForm(false);
     } catch (error) {

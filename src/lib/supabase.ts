@@ -1,4 +1,5 @@
 import { createClient, type Session, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { withBase } from './paths';
 
 export const AUTH_RETURN_TO_KEY = 'farmerville-auth-return-to';
 
@@ -8,7 +9,23 @@ function getEnv() {
   return {
     url: import.meta.env.PUBLIC_SUPABASE_URL,
     anonKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+    authRedirectUrl: import.meta.env.PUBLIC_AUTH_REDIRECT_URL,
   };
+}
+
+export function getAuthCallbackUrl(origin = window.location.origin) {
+  const { authRedirectUrl } = getEnv();
+  const normalizedRedirectUrl = authRedirectUrl?.trim();
+
+  if (normalizedRedirectUrl) {
+    return normalizedRedirectUrl;
+  }
+
+  return new URL(withBase('/auth/callback/'), origin).toString();
+}
+
+export function getDefaultPostAuthUrl(origin = window.location.origin) {
+  return new URL(withBase('/library/'), origin).toString();
 }
 
 export function isSupabaseConfigured() {
