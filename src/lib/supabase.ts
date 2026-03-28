@@ -1,4 +1,5 @@
-import { createClient, type Session, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
+import type { Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { withBase } from './paths';
 
 export const AUTH_RETURN_TO_KEY = 'farmerville-auth-return-to';
@@ -46,7 +47,7 @@ export function getSupabaseClient() {
 
   const { url, anonKey } = getEnv();
 
-  browserClient = createClient(url!, anonKey!, {
+  browserClient = createBrowserClient(url!, anonKey!, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
