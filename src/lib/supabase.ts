@@ -50,7 +50,7 @@ export function getSupabaseClient() {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
       flowType: 'pkce',
     },
   });
