@@ -43,14 +43,14 @@ const pdfUrl = withBase(entry.data.pdfPath ?? '');
   </section>
 
   <section class="doc-layout">
+    <section class="reader-panel">
+      <PdfViewer client:load pdfUrl={pdfUrl} docSlug={entry.data.slug} title={entry.data.title} />
+    </section>
+
     <article class="doc-layout__content">
       <div class="rich-copy">
         <Content />
       </div>
     </article>
-
-    <section class="reader-panel">
-      <PdfViewer client:load pdfUrl={pdfUrl} docSlug={entry.data.slug} title={entry.data.title} />
-    </section>
   </section>
 </BaseLayout>

@@ -2,6 +2,25 @@
 
 基于 `Astro + GitHub Pages + Supabase` 的公开 PDF 文档站。
 
+## 开发导航
+
+后续开发请优先阅读：
+
+- `docs/overview.md`
+- `docs/tech-stack.md`
+- `docs/development-guide.md`
+- `docs/component-api.md`
+- `docs/lib-api.md`
+- `docs/content-model.md`
+- `docs/ui-location-guide.md`
+- `docs/ui-style-index.md`
+- `docs/common-tasks.md`
+- `docs/validation-and-release.md`
+- `docs/module-dependency-map.md`
+- `docs/changelog.md`
+
+建议流程是先通过文档定位模块，再只打开对应文件修改，而不是每次重新扫描整个仓库。
+
 ## 本地开发
 
 ```bash
