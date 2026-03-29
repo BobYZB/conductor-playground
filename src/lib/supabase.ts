@@ -149,7 +149,11 @@ export function waitForAuthCallback(timeoutMs = 10_000): Promise<Session> {
         return;
       }
 
-      if (event === 'SIGNED_IN' && session) {
+      // SIGNED_IN fires when the SDK exchanges the code in real-time.
+      // INITIAL_SESSION fires immediately on subscribe — if the SDK already
+      // completed the PKCE exchange before we registered this listener,
+      // the session will be present here.
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         settled = true;
         subscription.unsubscribe();
         resolve(session);
