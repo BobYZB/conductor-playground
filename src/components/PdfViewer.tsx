@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, TouchEvent as ReactTouchEvent, WheelEvent as ReactWheelEvent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import ProgressNotice from './ProgressNotice';
 import { getReadingProgress, upsertReadingProgress } from '../lib/progress';
@@ -30,6 +31,11 @@ interface PDFDocumentLike {
   destroy: () => Promise<void> | void;
 }
 
+type ScrollSnapMode = 'top' | 'bottom';
+
+const WHEEL_NAVIGATION_THRESHOLD = 90;
+const TOUCH_NAVIGATION_THRESHOLD = 72;
+
 function clampPage(page: number, totalPages: number) {
   if (totalPages < 1) {
     return 1;
@@ -40,8 +46,13 @@ function clampPage(page: number, totalPages: number) {
 
 export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const persistTimerRef = useRef<number | null>(null);
+  const wheelResetTimerRef = useRef<number | null>(null);
   const lastSavedPageRef = useRef<number | null>(null);
+  const wheelDeltaRef = useRef(0);
+  const pendingScrollSnapRef = useRef<ScrollSnapMode | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const pdfRuntimeRef = useRef<{
     GlobalWorkerOptions: { workerSrc: string };
     getDocument: (url: string) => { promise: Promise<PDFDocumentLike> };
@@ -226,6 +237,21 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
         });
 
         await renderTask.promise;
+
+        const scrollSnapMode = pendingScrollSnapRef.current;
+
+        if (scrollSnapMode) {
+          window.requestAnimationFrame(() => {
+            const stage = stageRef.current;
+
+            if (!stage) {
+              return;
+            }
+
+            stage.scrollTop = scrollSnapMode === 'bottom' ? stage.scrollHeight : 0;
+            pendingScrollSnapRef.current = null;
+          });
+        }
       } catch (renderError) {
         if (!cancelled) {
           setError(renderError instanceof Error ? renderError.message : 'PDF 渲染失败。');
@@ -297,6 +323,14 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
     };
   }, [configured, docSlug, pageNumber, user]);
 
+  useEffect(() => {
+    return () => {
+      if (wheelResetTimerRef.current) {
+        window.clearTimeout(wheelResetTimerRef.current);
+      }
+    };
+  }, []);
+
   const pageStatus = useMemo(() => {
     if (!totalPages) {
       return '0 / 0';
@@ -305,12 +339,18 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
     return `${pageNumber} / ${totalPages}`;
   }, [pageNumber, totalPages]);
 
-  function changePage(nextPage: number) {
+  function changePage(nextPage: number, scrollSnapMode: ScrollSnapMode = 'top') {
     if (!totalPages) {
       return;
     }
 
     const clamped = clampPage(nextPage, totalPages);
+
+    if (clamped === pageNumber) {
+      return;
+    }
+
+    pendingScrollSnapRef.current = scrollSnapMode;
     setPageNumber(clamped);
   }
 
@@ -323,6 +363,116 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
     }
 
     changePage(nextValue);
+  }
+
+  function scheduleWheelNavigationReset() {
+    if (wheelResetTimerRef.current) {
+      window.clearTimeout(wheelResetTimerRef.current);
+    }
+
+    wheelResetTimerRef.current = window.setTimeout(() => {
+      wheelDeltaRef.current = 0;
+    }, 160);
+  }
+
+  function handleStageWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    const stage = stageRef.current;
+
+    if (!stage || !totalPages || rendering) {
+      return;
+    }
+
+    stage.focus();
+
+    const isAtTop = stage.scrollTop <= 2;
+    const isAtBottom = stage.scrollTop + stage.clientHeight >= stage.scrollHeight - 2;
+    const movingForward = event.deltaY > 0 && isAtBottom && pageNumber < totalPages;
+    const movingBackward = event.deltaY < 0 && isAtTop && pageNumber > 1;
+
+    if (!movingForward && !movingBackward) {
+      wheelDeltaRef.current = 0;
+      scheduleWheelNavigationReset();
+      return;
+    }
+
+    event.preventDefault();
+    wheelDeltaRef.current += event.deltaY;
+    scheduleWheelNavigationReset();
+
+    if (Math.abs(wheelDeltaRef.current) < WHEEL_NAVIGATION_THRESHOLD) {
+      return;
+    }
+
+    wheelDeltaRef.current = 0;
+    changePage(pageNumber + (movingForward ? 1 : -1), movingForward ? 'top' : 'bottom');
+  }
+
+  function handleStageKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'ArrowUp':
+      case 'PageUp':
+        event.preventDefault();
+        changePage(pageNumber - 1, 'bottom');
+        break;
+      case 'ArrowRight':
+      case 'ArrowDown':
+      case 'PageDown':
+        event.preventDefault();
+        changePage(pageNumber + 1, 'top');
+        break;
+      case 'Home':
+        event.preventDefault();
+        changePage(1, 'top');
+        break;
+      case 'End':
+        event.preventDefault();
+        changePage(totalPages, 'top');
+        break;
+      case ' ': {
+        event.preventDefault();
+        changePage(pageNumber + (event.shiftKey ? -1 : 1), event.shiftKey ? 'bottom' : 'top');
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  function handleTouchStart(event: ReactTouchEvent<HTMLDivElement>) {
+    const touch = event.touches[0];
+
+    if (!touch) {
+      return;
+    }
+
+    event.currentTarget.focus();
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleTouchEnd(event: ReactTouchEvent<HTMLDivElement>) {
+    const start = touchStartRef.current;
+    const touch = event.changedTouches[0];
+
+    touchStartRef.current = null;
+
+    if (!start || !touch) {
+      return;
+    }
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const horizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+    const verticalSwipe = Math.abs(deltaY) > Math.abs(deltaX) * 1.2;
+
+    if (horizontalSwipe && Math.abs(deltaX) >= TOUCH_NAVIGATION_THRESHOLD) {
+      changePage(pageNumber + (deltaX < 0 ? 1 : -1), deltaX < 0 ? 'top' : 'bottom');
+      return;
+    }
+
+    if (verticalSwipe && Math.abs(deltaY) >= TOUCH_NAVIGATION_THRESHOLD) {
+      changePage(pageNumber + (deltaY < 0 ? 1 : -1), deltaY < 0 ? 'top' : 'bottom');
+    }
   }
 
   return (
@@ -382,7 +532,19 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
         </div>
       </div>
 
-      <div className="canvas-stage">
+      <p className="reader-hint">支持方向键、PgUp/PgDn、空格键，以及滚轮到底或左右/上下滑动翻页。</p>
+
+      <div
+        ref={stageRef}
+        className="canvas-stage"
+        tabIndex={0}
+        role="region"
+        aria-label={`${title} 阅读画布`}
+        onKeyDown={handleStageKeyDown}
+        onTouchEnd={handleTouchEnd}
+        onTouchStart={handleTouchStart}
+        onWheel={handleStageWheel}
+      >
         {loading ? <p className="reader-placeholder">PDF 正在加载中...</p> : null}
         {!loading ? <canvas ref={canvasRef} className={rendering ? 'reader-canvas reader-canvas--loading' : 'reader-canvas'} /> : null}
       </div>

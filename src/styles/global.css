@@ -413,9 +413,10 @@ select {
 
 .doc-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.55fr);
   gap: 22px;
   margin-top: 28px;
+  align-items: start;
 }
 
 .doc-layout__content,
@@ -436,6 +437,8 @@ select {
 
 .reader-shell {
   padding: 20px;
+  position: sticky;
+  top: 24px;
 }
 
 .reader-shell__header,
@@ -470,6 +473,11 @@ select {
   color: var(--muted);
 }
 
+.reader-hint {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+
 .page-jump {
   display: inline-flex;
   flex-direction: column;
@@ -483,11 +491,23 @@ select {
 
 .canvas-stage {
   min-height: 360px;
+  max-height: 78vh;
   padding: 18px;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(78, 59, 34, 0.06), rgba(255, 255, 255, 0.95));
   overflow: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  cursor: grab;
+}
+
+.canvas-stage:focus-visible {
+  box-shadow: 0 0 0 3px rgba(86, 110, 61, 0.2);
+}
+
+.canvas-stage:active {
+  cursor: grabbing;
 }
 
 .reader-canvas {
@@ -610,8 +630,12 @@ select {
   .hero,
   .doc-hero,
   .section-block--muted,
-  .reader-shell,
   .rich-copy {
+    padding: 20px;
+  }
+
+  .reader-shell {
+    position: static;
     padding: 20px;
   }
 
