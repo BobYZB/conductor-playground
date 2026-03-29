@@ -134,6 +134,39 @@ npm run build
 
 ---
 
+## 5a. 调整 PDF 加载性能参数
+
+优先看：
+
+- `src/components/PdfViewer.tsx`
+
+当前性能架构：
+
+- PDF 通过 HTTP Range Requests 按需加载，不下载整个文件
+- 已渲染页面使用 `ImageBitmap` 缓存，翻页时优先从缓存绘制
+- 当前页渲染完成后，后台用 `OffscreenCanvas` 预渲染相邻页面
+
+可调参数：
+
+- `rangeChunkSize`（当前 `128 * 1024`）：增大可减少请求次数但增大单次延迟
+- `PAGE_PREFETCH_RADIUS`（当前 `2`）：增大可让更多页提前就绪，但占用更多内存
+- `MAX_CACHE_SIZE`（当前 `20`）：增大可缓存更多页面，但占用更多内存
+- `disableAutoFetch`：设为 `false` 可让 pdf.js 后台自动拉取剩余数据
+- `disableStream`：设为 `false` 可启用流式下载
+
+建议步骤：
+
+1. 调整目标参数
+2. 运行 `npm run build` 确认构建通过
+3. 打开大文件 PDF 详情页手动测试加载速度和翻页流畅度
+
+注意事项：
+
+- `disableAutoFetch` 和 `disableStream` 必须同时为 `true` 才能实现按需加载
+- 预渲染使用 `OffscreenCanvas`，在不支持的环境中会静默降级
+
+---
+
 ## 6. 修改阅读进度同步逻辑
 
 优先看：

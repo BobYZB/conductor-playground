@@ -334,8 +334,10 @@ AuthButton
 ```text
 docs/[slug].astro
   -> PdfViewer
-  -> pdfjs-dist load document
-  -> render page to canvas
+  -> pdfjs-dist load document (Range Requests, on-demand)
+  -> render page to canvas (with ImageBitmap cache)
+  -> prefetch neighbouring pages (OffscreenCanvas)
+  -> show loading progress bar
   -> read/write progress
   -> ProgressNotice
 ```
@@ -397,8 +399,8 @@ docs/[slug].astro
 
 通常会影响：
 
-- PDF 加载
-- PDF 渲染
+- PDF 加载（Range Requests 参数、进度条）
+- PDF 渲染（页面缓存、预渲染）
 - 翻页
 - 缩放
 - 阅读进度同步

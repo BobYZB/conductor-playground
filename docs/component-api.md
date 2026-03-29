@@ -125,22 +125,38 @@
 - `totalPages`
 - `user`
 - `loading`
+- `loadProgress`
 - `rendering`
 - `notice`
 - `error`
 
+核心 Ref：
+
+- `pageCacheRef`：`Map<string, ImageBitmap>` 页面渲染缓存，key 为 `页码@缩放@devicePixelRatio`
+- `pdfRuntimeRef`：pdfjs-dist 运行时引用
+
 核心交互能力：
 
-- PDF 动态加载
-- 当前页渲染
+- PDF 按需加载（Range Requests，不下载整个文件）
+- 加载进度条显示
+- 当前页渲染（优先使用缓存）
+- 相邻页后台预渲染（`OffscreenCanvas`，前后各 2 页）
 - 上一页 / 下一页
 - 跳页
-- 缩放
+- 缩放（缩放时清空页面缓存）
 - 键盘翻页
 - 滚轮翻页
 - 滑动翻页
 - 阅读进度恢复
 - 阅读进度保存
+
+性能关键参数：
+
+- `disableAutoFetch: true`：禁止后台自动拉取整个 PDF
+- `disableStream: true`：仅按需拉取当前页数据
+- `rangeChunkSize: 128 * 1024`：每次 Range 请求最大 128KB
+- `PAGE_PREFETCH_RADIUS = 2`：预渲染前后各 2 页
+- `MAX_CACHE_SIZE = 20`：页面缓存上限
 
 常见改动：
 
@@ -150,6 +166,8 @@
 - 阅读提示
 - 同步频率
 - 交互阈值
+- 加载性能参数（Range 请求大小、预渲染范围）
+- 缓存策略（缓存上限、淘汰方式）
 
 注意事项：
 
