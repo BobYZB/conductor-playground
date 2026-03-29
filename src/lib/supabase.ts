@@ -47,14 +47,10 @@ export function getSupabaseClient() {
 
   const { url, anonKey } = getEnv();
 
-  browserClient = createBrowserClient(url!, anonKey!, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-      flowType: 'pkce',
-    },
-  });
+  // createBrowserClient from @supabase/ssr internally forces:
+  //   flowType: 'pkce', detectSessionInUrl: true, persistSession: true
+  // so there is no need (or way) to override them here.
+  browserClient = createBrowserClient(url!, anonKey!);
 
   return browserClient;
 }
@@ -108,7 +104,7 @@ export async function signOut() {
   }
 }
 
-export function onAuthStateChange(callback: (user: User | null, session: Session | null) => void) {
+export function onAuthStateChange(callback: (user: User | null, session: Session | null, event?: string) => void) {
   const client = getSupabaseClient();
 
   if (!client) {
@@ -117,32 +113,55 @@ export function onAuthStateChange(callback: (user: User | null, session: Session
 
   const {
     data: { subscription },
-  } = client.auth.onAuthStateChange((_event, session) => {
-    callback(session?.user ?? null, session ?? null);
+  } = client.auth.onAuthStateChange((event, session) => {
+    callback(session?.user ?? null, session ?? null, event);
   });
 
   return () => subscription.unsubscribe();
 }
 
-export async function finishAuthFromUrl() {
+/**
+ * Wait for the SDK to automatically complete the PKCE exchange when
+ * `detectSessionInUrl` is enabled (the default for createBrowserClient).
+ * Resolves with the session once a SIGNED_IN event fires, or rejects on
+ * timeout / if the URL contains no auth code.
+ */
+export function waitForAuthCallback(timeoutMs = 10_000): Promise<Session> {
   const client = getSupabaseClient();
 
   if (!client) {
-    throw new Error('Supabase is not configured.');
+    return Promise.reject(new Error('Supabase is not configured.'));
   }
 
   const url = new URL(window.location.href);
-  const code = url.searchParams.get('code');
 
-  if (!code) {
-    return null;
+  if (!url.searchParams.get('code')) {
+    return Promise.reject(new Error('URL 中未找到授权码。'));
   }
 
-  const { data, error } = await client.auth.exchangeCodeForSession(code);
+  return new Promise<Session>((resolve, reject) => {
+    let settled = false;
 
-  if (error) {
-    throw error;
-  }
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((event, session) => {
+      if (settled) {
+        return;
+      }
 
-  return data.session;
+      if (event === 'SIGNED_IN' && session) {
+        settled = true;
+        subscription.unsubscribe();
+        resolve(session);
+      }
+    });
+
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        subscription.unsubscribe();
+        reject(new Error('登录超时，请重试。'));
+      }
+    }, timeoutMs);
+  });
 }

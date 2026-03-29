@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AUTH_RETURN_TO_KEY, finishAuthFromUrl, getDefaultPostAuthUrl, isSupabaseConfigured } from '../lib/supabase';
+import { AUTH_RETURN_TO_KEY, getDefaultPostAuthUrl, isSupabaseConfigured, waitForAuthCallback } from '../lib/supabase';
 import { withBase } from '../lib/paths';
 
 const PKCE_ERROR_HINT = 'code verifier';
@@ -28,7 +28,10 @@ export default function AuthCallback() {
       }
 
       try {
-        await finishAuthFromUrl();
+        // SDK auto-detects the code in the URL and exchanges it via PKCE.
+        // We just wait for the SIGNED_IN event instead of calling
+        // exchangeCodeForSession manually (which would double-consume the code).
+        await waitForAuthCallback();
 
         if (!active) {
           return;
