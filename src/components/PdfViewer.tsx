@@ -70,7 +70,8 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentLike | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageInput, setPageInput] = useState('1');
-  const [scale, setScale] = useState(1.15);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [stageWidth, setStageWidth] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,7 +223,33 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
   }, [pageNumber]);
 
   useEffect(() => {
-    if (!pdfDoc || !canvasRef.current) {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return;
+    }
+
+    const updateStageWidth = () => {
+      const style = window.getComputedStyle(stage);
+      const horizontalPadding = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+      setStageWidth(Math.max(stage.clientWidth - horizontalPadding, 0));
+    };
+
+    updateStageWidth();
+
+    const observer = new ResizeObserver(() => {
+      updateStageWidth();
+    });
+
+    observer.observe(stage);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pdfDoc || !canvasRef.current || !stageWidth) {
       return;
     }
 
@@ -245,7 +272,10 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
           return;
         }
 
-        const cacheKey = `${pageNumber}@${scale}@${window.devicePixelRatio}`;
+        const page = await currentDoc.getPage(pageNumber);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const renderScale = (stageWidth / baseViewport.width) * zoomLevel;
+        const cacheKey = `${pageNumber}@${renderScale}@${window.devicePixelRatio}`;
         const cachedBitmap = pageCacheRef.current.get(cacheKey);
 
         if (cachedBitmap) {
@@ -264,8 +294,7 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
 
           context.drawImage(cachedBitmap, 0, 0);
         } else {
-          const page = await currentDoc.getPage(pageNumber);
-          const viewport = page.getViewport({ scale });
+          const viewport = page.getViewport({ scale: renderScale });
 
           if (cancelled || !canvasRef.current) {
             return;
@@ -346,7 +375,7 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
       cancelled = true;
       renderTask?.cancel();
     };
-  }, [pageNumber, pdfDoc, scale]);
+  }, [pageNumber, pdfDoc, stageWidth, zoomLevel]);
 
   // Background prefetch of neighbouring pages so they render instantly on navigation.
   const prefetchPages = useCallback(
@@ -396,25 +425,29 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
   );
 
   useEffect(() => {
-    if (!pdfDoc || rendering) {
+    if (!pdfDoc || rendering || !stageWidth) {
       return;
     }
 
     const timer = window.setTimeout(() => {
-      void prefetchPages(pdfDoc, pageNumber, scale);
+      void pdfDoc.getPage(pageNumber).then((page) => {
+        const baseViewport = page.getViewport({ scale: 1 });
+        const renderScale = (stageWidth / baseViewport.width) * zoomLevel;
+        void prefetchPages(pdfDoc, pageNumber, renderScale);
+      });
     }, 200);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [pageNumber, pdfDoc, prefetchPages, rendering, scale]);
+  }, [pageNumber, pdfDoc, prefetchPages, rendering, stageWidth, zoomLevel]);
 
-  // Clear page cache when scale changes to avoid stale bitmaps.
+  // Clear page cache when viewport sizing changes to avoid stale bitmaps.
   useEffect(() => {
     const cache = pageCacheRef.current;
     cache.forEach((bitmap) => bitmap.close());
     cache.clear();
-  }, [scale]);
+  }, [stageWidth, zoomLevel]);
 
   useEffect(() => {
     if (!user || !configured || !pdfDoc) {
@@ -665,13 +698,13 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
               }}
             />
           </label>
-          <button className="button button--ghost" type="button" onClick={() => setScale((current) => Math.max(0.8, current - 0.15))}>
+          <button className="button button--ghost" type="button" onClick={() => setZoomLevel((current) => Math.max(0.7, current - 0.1))}>
             缩小
           </button>
-          <button className="button button--ghost" type="button" onClick={() => setScale((current) => Math.min(2.2, current + 0.15))}>
+          <button className="button button--ghost" type="button" onClick={() => setZoomLevel((current) => Math.min(2.4, current + 0.1))}>
             放大
           </button>
-          <button className="button button--ghost" type="button" onClick={() => setScale(1.15)}>
+          <button className="button button--ghost" type="button" onClick={() => setZoomLevel(1)}>
             重置
           </button>
         </div>
