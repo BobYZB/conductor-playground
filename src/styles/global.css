@@ -448,25 +448,68 @@ select {
 
 .doc-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
   gap: 24px;
   margin-top: 18px;
   align-items: start;
 }
 
 .doc-layout__content,
-.reader-panel {
+.reader-panel,
+.notes-panel {
   min-width: 0;
 }
 
 .reader-panel {
-  width: min(100%, 1320px);
-  margin: 0 auto;
+  width: 100%;
+}
+
+.notes-panel {
+  width: 100%;
+}
+
+.notes-panel__card {
+  min-height: clamp(580px, 82vh, 1080px);
+  padding: 24px;
+  border: 1px solid rgba(80, 64, 38, 0.18);
+  border-radius: calc(var(--radius-lg) - 4px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(246, 237, 216, 0.86));
+  box-shadow: var(--shadow);
+}
+
+.notes-panel__card h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 2vw, 2.2rem);
+}
+
+.notes-panel__summary {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.notes-panel__canvas {
+  display: grid;
+  place-items: center;
+  min-height: calc(100% - 112px);
+  margin-top: 18px;
+  border: 1px dashed rgba(80, 64, 38, 0.24);
+  border-radius: calc(var(--radius-lg) - 8px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(251, 246, 235, 0.95)),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 33px,
+      rgba(80, 64, 38, 0.07) 33px,
+      rgba(80, 64, 38, 0.07) 34px
+    );
+  color: var(--muted);
+  text-align: center;
 }
 
 .doc-layout__content {
-  width: min(100%, 860px);
-  margin: 0 auto;
+  grid-column: 1 / -1;
+  width: min(100%, 960px);
 }
 
 .rich-copy {
@@ -657,10 +700,13 @@ select {
   .site-header__inner,
   .hero,
   .doc-hero,
-  .doc-layout,
   .filter-panel,
   .card-grid,
   .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-layout {
     grid-template-columns: 1fr;
   }
 
@@ -682,6 +728,12 @@ select {
 
   .reader-toolbar__group--compact {
     justify-content: start;
+  }
+
+  .notes-panel__card,
+  .canvas-stage {
+    min-height: 0;
+    height: 72vh;
   }
 }
 
@@ -712,6 +764,16 @@ select {
   .canvas-stage {
     height: 76vh;
     padding: 14px;
+  }
+
+  .notes-panel__card {
+    height: auto;
+    min-height: 360px;
+    padding: 20px;
+  }
+
+  .notes-panel__canvas {
+    min-height: 220px;
   }
 
   .hero__copy h1,

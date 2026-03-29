@@ -51,6 +51,17 @@ const pdfUrl = withBase(entry.data.pdfPath ?? '');
       <PdfViewer client:load pdfUrl={pdfUrl} docSlug={entry.data.slug} title={entry.data.title} />
     </section>
 
+    <aside class="notes-panel" aria-label="笔记预留区域">
+      <div class="notes-panel__card">
+        <p class="section-kicker">预留区域</p>
+        <h2>笔记 / 备注</h2>
+        <p class="notes-panel__summary">右侧区域先保留给后续记录能力，当前先作为空白占位区。</p>
+        <div class="notes-panel__canvas" aria-hidden="true">
+          <span>未来可放批注、摘录或阅读备注</span>
+        </div>
+      </div>
+    </aside>
+
     <article class="doc-layout__content">
       <div class="rich-copy">
         <Content />
