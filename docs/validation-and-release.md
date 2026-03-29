@@ -89,6 +89,27 @@ npm run build
 - 缩放后画布是否正常
 - 新交互是否与旧按钮冲突
 
+### 阅读器性能改动
+
+例如：
+
+- 改 Range Request 参数（`rangeChunkSize`、`disableAutoFetch`、`disableStream`）
+- 改页面缓存策略（`MAX_CACHE_SIZE`）
+- 改预渲染范围（`PAGE_PREFETCH_RADIUS`）
+
+最低验证：
+
+```bash
+npm run build
+```
+
+建议补充：
+
+- 打开一个大文件 PDF 详情页（如 47MB 的"面试场景题"）
+- 确认首页在 3-5 秒内加载完成并显示
+- 翻页后回翻，确认已缓存页面秒切
+- 使用浏览器开发者工具 Network 面板观察请求行为，确认是 Range Requests 而非全量下载
+
 ### 登录与进度同步改动
 
 例如：
@@ -178,6 +199,9 @@ npm run build
 - 键盘翻页
 - 滚轮翻页
 - 滑动翻页
+- 大文件 PDF 首次加载速度（应在 3-5 秒内完成）
+- 加载进度条是否正常显示
+- 已翻过的页面回翻是否秒切
 
 ### 登录与回调
 
@@ -237,6 +261,7 @@ npm run build
 
 - `npm run build`
 - 打开详情页手测阅读器
+- 如果改了加载性能参数，用大文件 PDF 测试首次加载速度和翻页流畅度
 
 ### 改 `src/lib/supabase.ts`
 

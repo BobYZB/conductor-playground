@@ -8,6 +8,54 @@
 
 ## 2026-03-29
 
+### PDF 阅读器加载性能优化
+
+相关文件：
+
+- `src/components/PdfViewer.tsx`
+- `src/styles/global.css`
+
+本次变更内容：
+
+- 启用 pdfjs-dist 的 HTTP Range Requests 按需加载，不再一次性下载整个 PDF
+  - `disableAutoFetch: true`：禁止后台自动拉取整个文件
+  - `disableStream: true`：禁止流式下载，配合 Range Requests 仅拉取当前页数据
+  - `rangeChunkSize: 128KB`：每次 Range 请求最大 128KB
+- 新增页面渲染缓存机制
+  - 使用 `ImageBitmap` 缓存已渲染页面，来回翻页时直接从缓存绘制
+  - 缓存上限 20 页，超出时淘汰最早的缓存
+  - 缩放时自动清空缓存重新渲染
+- 新增相邻页后台预渲染
+  - 当前页渲染完成后，使用 `OffscreenCanvas` 在后台预渲染前后各 2 页
+  - 预渲染延迟 200ms 启动，避免干扰当前页渲染
+  - 预渲染失败静默忽略，不影响正常阅读
+- 新增加载进度条
+  - 利用 `PDFDocumentLoadingTask.onProgress` 回调显示下载百分比
+  - 在加载占位区域显示带动画的进度条
+- 新增 `PDFLoadingTaskLike` 类型定义，支持 `onProgress` 和 `destroy`
+- 组件 cleanup 中调用 `loadingTask.destroy()` 中止加载
+
+性能预期：
+
+- 47MB PDF 首页加载从 10s+ 降至 1s 以内（仅需下载约 200-500KB）
+- 翻到已缓存页面时渲染延迟接近 0
+- 翻到已预渲染的相邻页面时渲染延迟接近 0
+
+影响范围：
+
+- PDF 阅读器加载体验
+- PDF 阅读器翻页流畅度
+- 新增 CSS 类：`.reader-progress-bar`、`.reader-progress-bar__fill`
+
+验证方式：
+
+- 执行 `npm run build`
+- 构建通过
+- 打开大文件 PDF 详情页，确认首页在数秒内加载完成
+- 翻页后回翻，确认页面秒切
+
+---
+
 ### PDF 阅读器交互优化
 
 相关文件：

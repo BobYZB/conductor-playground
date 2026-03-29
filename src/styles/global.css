@@ -526,6 +526,23 @@ select {
   color: var(--muted);
 }
 
+.reader-progress-bar {
+  width: 100%;
+  max-width: 320px;
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.reader-progress-bar__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.15s ease-out;
+}
+
 .progress-note {
   margin: 0 0 12px;
   padding: 12px 14px;

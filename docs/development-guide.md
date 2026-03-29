@@ -147,13 +147,23 @@ PDF 阅读器核心组件，是当前最复杂的前端模块。
 职责分解：
 
 - 动态加载 `pdfjs-dist`
-- 加载 PDF 文档对象
+- 通过 Range Requests 按需加载 PDF 文档（不再一次性下载整个文件）
+- 显示加载进度条
 - 渲染当前页到 `canvas`
+- 使用 `ImageBitmap` 缓存已渲染页面（最多 20 页）
+- 使用 `OffscreenCanvas` 后台预渲染相邻页面
 - 维护页码、缩放、输入框状态
 - 恢复用户阅读进度
 - 定时保存阅读进度
 - 处理键盘、滚轮、滑动翻页
 - 展示通知和错误信息
+
+性能关键配置：
+
+- `disableAutoFetch: true`：禁止后台自动拉取整个 PDF
+- `disableStream: true`：禁止流式下载，仅按需拉取当前页数据
+- `rangeChunkSize: 128 * 1024`：每次 Range 请求最大 128KB
+- `PAGE_PREFETCH_RADIUS = 2`：预渲染前后各 2 页
 
 常见改动入口：
 
@@ -161,6 +171,9 @@ PDF 阅读器核心组件，是当前最复杂的前端模块。
 - 改缩放逻辑：看 `scale` 相关状态和按钮
 - 改阅读体验：看 `canvas-stage` 和渲染 effect
 - 改同步行为：看与 `getReadingProgress` / `upsertReadingProgress` 的调用
+- 改加载性能：看 `loadDocument` 中的 `getDocument` 参数和 `onProgress`
+- 改缓存策略：看 `pageCacheRef`、`prefetchPages`、`MAX_CACHE_SIZE`
+- 改预渲染范围：看 `PAGE_PREFETCH_RADIUS`
 
 ### `src/components/AuthButton.tsx`
 
@@ -333,10 +346,12 @@ Supabase 浏览器客户端与认证辅助工具。
 
 1. 详情页把 `pdfUrl`、`docSlug`、`title` 传入 `PdfViewer`
 2. `PdfViewer` 动态加载 `pdfjs-dist`
-3. 创建 PDF 文档对象
-4. 根据当前页码渲染 `canvas`
-5. 用户翻页、缩放、跳转页码
-6. 已登录时自动读取/写入阅读进度
+3. 使用 Range Requests 按需请求 PDF 数据（不下载整个文件），同时显示加载进度条
+4. 获得 PDF 文档对象后，根据当前页码渲染 `canvas`
+5. 渲染完成后将页面缓存为 `ImageBitmap`，并在后台预渲染相邻页
+6. 用户翻页时优先使用缓存，缓存未命中则按需拉取并渲染
+7. 用户缩放时清空缓存，重新渲染当前页
+8. 已登录时自动读取/写入阅读进度
 
 ### 登录流程
 
@@ -367,6 +382,9 @@ Supabase 浏览器客户端与认证辅助工具。
 - 改键盘/滚轮/滑动翻页：`src/components/PdfViewer.tsx`
 - 改阅读器样式：`src/styles/global.css`
 - 改阅读提示消息：`src/components/ProgressNotice.tsx`
+- 改加载性能参数：`src/components/PdfViewer.tsx`（`disableAutoFetch`、`rangeChunkSize` 等）
+- 改页面缓存策略：`src/components/PdfViewer.tsx`（`MAX_CACHE_SIZE`、`PAGE_PREFETCH_RADIUS`）
+- 改加载进度条样式：`src/styles/global.css`（`.reader-progress-bar`）
 
 ### 登录与同步相关
 

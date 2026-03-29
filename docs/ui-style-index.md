@@ -248,6 +248,8 @@
 - `.reader-canvas`
 - `.reader-canvas--loading`
 - `.reader-placeholder`
+- `.reader-progress-bar`
+- `.reader-progress-bar__fill`
 - `.progress-note`
 - `.progress-note--info`
 - `.progress-note--success`
@@ -260,7 +262,7 @@
 - 工具栏布局
 - 页码输入区
 - PDF 画布容器
-- 加载态
+- 加载态与加载进度条
 - 提示消息样式
 
 ---

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, TouchEvent as ReactTouchEvent, WheelEvent as ReactWheelEvent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import ProgressNotice from './ProgressNotice';
@@ -31,10 +31,19 @@ interface PDFDocumentLike {
   destroy: () => Promise<void> | void;
 }
 
+interface PDFLoadingTaskLike {
+  promise: Promise<PDFDocumentLike>;
+  onProgress: ((data: { loaded: number; total: number }) => void) | null;
+  destroy: () => void;
+}
+
 type ScrollSnapMode = 'top' | 'bottom';
 
 const WHEEL_NAVIGATION_THRESHOLD = 90;
 const TOUCH_NAVIGATION_THRESHOLD = 72;
+
+/** Number of neighbouring pages to pre-fetch in the background. */
+const PAGE_PREFETCH_RADIUS = 2;
 
 function clampPage(page: number, totalPages: number) {
   if (totalPages < 1) {
@@ -55,8 +64,9 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const pdfRuntimeRef = useRef<{
     GlobalWorkerOptions: { workerSrc: string };
-    getDocument: (url: string) => { promise: Promise<PDFDocumentLike> };
+    getDocument: (src: string | Record<string, unknown>) => PDFLoadingTaskLike;
   } | null>(null);
+  const pageCacheRef = useRef<Map<string, ImageBitmap>>(new Map());
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentLike | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageInput, setPageInput] = useState('1');
@@ -64,6 +74,7 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
   const [totalPages, setTotalPages] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
   const [rendering, setRendering] = useState(false);
   const [notice, setNotice] = useState<NoticeState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,10 +113,12 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
 
   useEffect(() => {
     let active = true;
+    let loadingTask: PDFLoadingTaskLike | null = null;
 
     async function loadDocument() {
       try {
         setLoading(true);
+        setLoadProgress(0);
         setError(null);
         const [pdfRuntime, workerModule] = await Promise.all([
           import('pdfjs-dist/build/pdf.mjs'),
@@ -118,11 +131,26 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
 
         pdfRuntimeRef.current = {
           GlobalWorkerOptions: pdfRuntime.GlobalWorkerOptions,
-          getDocument: pdfRuntime.getDocument,
+          getDocument: pdfRuntime.getDocument as (src: string | Record<string, unknown>) => PDFLoadingTaskLike,
         };
         pdfRuntimeRef.current.GlobalWorkerOptions.workerSrc = workerModule.default;
 
-        const nextPdf = await pdfRuntimeRef.current.getDocument(pdfUrl).promise;
+        const runtime = pdfRuntimeRef.current;
+
+        loadingTask = runtime.getDocument({
+          url: pdfUrl,
+          disableAutoFetch: true,
+          disableStream: true,
+          rangeChunkSize: 128 * 1024,
+        });
+
+        loadingTask.onProgress = (data: { loaded: number; total: number }) => {
+          if (active && data.total > 0) {
+            setLoadProgress(Math.min(Math.round((data.loaded / data.total) * 100), 100));
+          }
+        };
+
+        const nextPdf = await loadingTask.promise;
 
         if (!active) {
           await nextPdf.destroy();
@@ -148,6 +176,7 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
 
     return () => {
       active = false;
+      loadingTask?.destroy();
     };
   }, [pdfUrl]);
 
@@ -210,47 +239,95 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
           return;
         }
 
-        const page = await currentDoc.getPage(pageNumber);
-        const viewport = page.getViewport({ scale });
         const canvas = canvasRef.current;
 
         if (!canvas) {
           return;
         }
 
-        const context = canvas.getContext('2d');
+        const cacheKey = `${pageNumber}@${scale}@${window.devicePixelRatio}`;
+        const cachedBitmap = pageCacheRef.current.get(cacheKey);
 
-        if (!context) {
-          throw new Error('无法获取 PDF 画布上下文。');
+        if (cachedBitmap) {
+          const context = canvas.getContext('2d');
+
+          if (!context) {
+            throw new Error('无法获取 PDF 画布上下文。');
+          }
+
+          canvas.width = cachedBitmap.width;
+          canvas.height = cachedBitmap.height;
+
+          const outputScale = window.devicePixelRatio || 1;
+          canvas.style.width = `${cachedBitmap.width / outputScale}px`;
+          canvas.style.height = `${cachedBitmap.height / outputScale}px`;
+
+          context.drawImage(cachedBitmap, 0, 0);
+        } else {
+          const page = await currentDoc.getPage(pageNumber);
+          const viewport = page.getViewport({ scale });
+
+          if (cancelled || !canvasRef.current) {
+            return;
+          }
+
+          const context = canvas.getContext('2d');
+
+          if (!context) {
+            throw new Error('无法获取 PDF 画布上下文。');
+          }
+
+          const outputScale = window.devicePixelRatio || 1;
+          canvas.width = Math.floor(viewport.width * outputScale);
+          canvas.height = Math.floor(viewport.height * outputScale);
+          canvas.style.width = `${viewport.width}px`;
+          canvas.style.height = `${viewport.height}px`;
+
+          renderTask = page.render({
+            canvasContext: context,
+            viewport,
+            transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
+          });
+
+          await renderTask.promise;
+
+          if (!cancelled) {
+            try {
+              const bitmap = await createImageBitmap(canvas);
+              pageCacheRef.current.set(cacheKey, bitmap);
+
+              const MAX_CACHE_SIZE = 20;
+
+              if (pageCacheRef.current.size > MAX_CACHE_SIZE) {
+                const firstKey = pageCacheRef.current.keys().next().value;
+
+                if (firstKey !== undefined) {
+                  const old = pageCacheRef.current.get(firstKey);
+                  old?.close();
+                  pageCacheRef.current.delete(firstKey);
+                }
+              }
+            } catch {
+              // ImageBitmap creation can fail in some environments; non-critical.
+            }
+          }
         }
 
-        const outputScale = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(viewport.width * outputScale);
-        canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
+        if (!cancelled) {
+          const scrollSnapMode = pendingScrollSnapRef.current;
 
-        renderTask = page.render({
-          canvasContext: context,
-          viewport,
-          transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
-        });
+          if (scrollSnapMode) {
+            window.requestAnimationFrame(() => {
+              const stage = stageRef.current;
 
-        await renderTask.promise;
+              if (!stage) {
+                return;
+              }
 
-        const scrollSnapMode = pendingScrollSnapRef.current;
-
-        if (scrollSnapMode) {
-          window.requestAnimationFrame(() => {
-            const stage = stageRef.current;
-
-            if (!stage) {
-              return;
-            }
-
-            stage.scrollTop = scrollSnapMode === 'bottom' ? stage.scrollHeight : 0;
-            pendingScrollSnapRef.current = null;
-          });
+              stage.scrollTop = scrollSnapMode === 'bottom' ? stage.scrollHeight : 0;
+              pendingScrollSnapRef.current = null;
+            });
+          }
         }
       } catch (renderError) {
         if (!cancelled) {
@@ -270,6 +347,74 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
       renderTask?.cancel();
     };
   }, [pageNumber, pdfDoc, scale]);
+
+  // Background prefetch of neighbouring pages so they render instantly on navigation.
+  const prefetchPages = useCallback(
+    async (doc: PDFDocumentLike, center: number, currentScale: number) => {
+      const outputScale = window.devicePixelRatio || 1;
+
+      for (let offset = 1; offset <= PAGE_PREFETCH_RADIUS; offset++) {
+        for (const p of [center + offset, center - offset]) {
+          if (p < 1 || p > doc.numPages) {
+            continue;
+          }
+
+          const key = `${p}@${currentScale}@${outputScale}`;
+
+          if (pageCacheRef.current.has(key)) {
+            continue;
+          }
+
+          try {
+            const page = await doc.getPage(p);
+            const viewport = page.getViewport({ scale: currentScale });
+            const offscreen = new OffscreenCanvas(
+              Math.floor(viewport.width * outputScale),
+              Math.floor(viewport.height * outputScale),
+            );
+            const ctx = offscreen.getContext('2d');
+
+            if (!ctx) {
+              continue;
+            }
+
+            await page.render({
+              canvasContext: ctx as unknown as CanvasRenderingContext2D,
+              viewport,
+              transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
+            }).promise;
+
+            const bitmap = await createImageBitmap(offscreen);
+            pageCacheRef.current.set(key, bitmap);
+          } catch {
+            // Prefetch is best-effort; silently ignore failures.
+          }
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!pdfDoc || rendering) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void prefetchPages(pdfDoc, pageNumber, scale);
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [pageNumber, pdfDoc, prefetchPages, rendering, scale]);
+
+  // Clear page cache when scale changes to avoid stale bitmaps.
+  useEffect(() => {
+    const cache = pageCacheRef.current;
+    cache.forEach((bitmap) => bitmap.close());
+    cache.clear();
+  }, [scale]);
 
   useEffect(() => {
     if (!user || !configured || !pdfDoc) {
@@ -545,7 +690,16 @@ export default function PdfViewer({ pdfUrl, docSlug, title }: PdfViewerProps) {
         onTouchStart={handleTouchStart}
         onWheel={handleStageWheel}
       >
-        {loading ? <p className="reader-placeholder">PDF 正在加载中...</p> : null}
+        {loading ? (
+          <div className="reader-placeholder">
+            <p>PDF 正在加载中...{loadProgress > 0 ? ` ${loadProgress}%` : ''}</p>
+            {loadProgress > 0 ? (
+              <div className="reader-progress-bar">
+                <div className="reader-progress-bar__fill" style={{ width: `${loadProgress}%` }} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {!loading ? <canvas ref={canvasRef} className={rendering ? 'reader-canvas reader-canvas--loading' : 'reader-canvas'} /> : null}
       </div>
     </div>
