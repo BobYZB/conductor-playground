@@ -7,11 +7,13 @@ import '../styles/global.css';
 interface Props {
   title: string;
   description?: string;
+  contentClass?: string;
 }
 
 const {
   title,
   description = '一个公开的 PDF 文档花园，支持站内阅读与跨设备同步进度。',
+  contentClass,
 } = Astro.props;
 ---
 
@@ -27,7 +29,7 @@ const {
     <AuthCodeHandler client:load />
     <div class="page-shell">
       <SiteHeader />
-      <main class="page-content">
+      <main class:list={['page-content', contentClass]}>
         <slot />
       </main>
       <SiteFooter />

@@ -22,8 +22,12 @@ const { Content } = await render(entry);
 const pdfUrl = withBase(entry.data.pdfPath ?? '');
 ---
 
-<BaseLayout title={`${entry.data.title} | Farmerville`} description={entry.data.summary}>
-  <section class="doc-hero">
+<BaseLayout
+  title={`${entry.data.title} | Farmerville`}
+  description={entry.data.summary}
+  contentClass="page-content--reader"
+>
+  <section class="doc-hero doc-hero--reader">
     <div class="doc-hero__content">
       <p class="section-kicker">{entry.data.category}</p>
       <h1>{entry.data.title}</h1>

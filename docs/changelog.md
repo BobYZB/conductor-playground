@@ -8,6 +8,43 @@
 
 ## 2026-03-29
 
+### 阅读页铺满式布局优化
+
+相关文件：
+
+- `src/components/PdfViewer.tsx`
+- `src/pages/docs/[slug].astro`
+- `src/layouts/BaseLayout.astro`
+- `src/styles/global.css`
+- `docs/component-api.md`
+- `docs/ui-location-guide.md`
+- `docs/ui-style-index.md`
+- `docs/development-guide.md`
+- `docs/common-tasks.md`
+
+本次变更内容：
+
+- 将 PDF 详情页改为阅读器优先的单列阅读页布局
+- 为阅读页新增专用内容宽度类 `page-content--reader`
+- 为详情页头部新增紧凑样式 `doc-hero--reader`
+- 将阅读器默认行为调整为按容器宽度自动铺满 PDF 页面
+- 将工具栏缩放调整为基于“铺满宽度”的相对缩放
+- 提高阅读画布高度，增强接近全屏的阅读效果
+- 同步更新组件说明、UI 定位、样式索引和开发指南文档
+
+影响范围：
+
+- PDF 详情页首屏布局
+- PDF 阅读器默认缩放体验
+- 阅读器相关维护文档
+
+验证方式：
+
+- 执行 `npm run build`
+- 构建通过
+
+---
+
 ### PDF 阅读器加载性能优化
 
 相关文件：

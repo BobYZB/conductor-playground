@@ -61,6 +61,11 @@ select {
   padding: 32px 0 72px;
 }
 
+.page-content--reader {
+  width: min(1440px, calc(100vw - 16px));
+  padding-top: 20px;
+}
+
 .site-header,
 .site-footer {
   width: 100%;
@@ -140,6 +145,36 @@ select {
     linear-gradient(145deg, rgba(255, 255, 255, 0.75), rgba(249, 242, 226, 0.9)),
     var(--surface);
   box-shadow: var(--shadow);
+}
+
+.doc-hero--reader {
+  width: min(100%, 1180px);
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 22px 24px;
+  margin: 0 auto;
+}
+
+.doc-hero--reader .doc-hero__content h1 {
+  font-size: clamp(1.9rem, 2.8vw, 3rem);
+}
+
+.doc-hero--reader .doc-hero__summary {
+  margin: 8px 0 0;
+  max-width: 72ch;
+}
+
+.doc-hero--reader .doc-meta {
+  margin-top: 12px;
+  gap: 12px 16px;
+}
+
+.doc-hero--reader .tag-row {
+  margin-top: 12px;
+}
+
+.doc-hero--reader .hero__actions {
+  margin-top: 16px;
 }
 
 .hero__copy h1,
@@ -413,15 +448,25 @@ select {
 
 .doc-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.55fr);
-  gap: 22px;
-  margin-top: 28px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 18px;
   align-items: start;
 }
 
 .doc-layout__content,
 .reader-panel {
   min-width: 0;
+}
+
+.reader-panel {
+  width: min(100%, 1320px);
+  margin: 0 auto;
+}
+
+.doc-layout__content {
+  width: min(100%, 860px);
+  margin: 0 auto;
 }
 
 .rich-copy {
@@ -436,9 +481,11 @@ select {
 }
 
 .reader-shell {
-  padding: 20px;
-  position: sticky;
-  top: 24px;
+  padding: 24px;
+  border: 1px solid rgba(80, 64, 38, 0.18);
+  border-radius: calc(var(--radius-lg) - 4px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(248, 240, 222, 0.9));
+  box-shadow: var(--shadow);
 }
 
 .reader-shell__header,
@@ -490,12 +537,11 @@ select {
 }
 
 .canvas-stage {
-  min-height: 360px;
-  max-height: 78vh;
-  padding: 18px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(78, 59, 34, 0.06), rgba(255, 255, 255, 0.95));
+  height: clamp(580px, 82vh, 1080px);
+  padding: 20px;
+  border-radius: calc(var(--radius-lg) - 6px);
+  border: 1px solid rgba(80, 64, 38, 0.14);
+  background: linear-gradient(180deg, rgba(110, 92, 67, 0.08), rgba(255, 255, 255, 0.98));
   overflow: auto;
   overscroll-behavior: contain;
   outline: none;
@@ -644,6 +690,10 @@ select {
     padding-top: 20px;
   }
 
+  .page-content--reader {
+    width: min(100vw - 12px, 100%);
+  }
+
   .hero,
   .doc-hero,
   .section-block--muted,
@@ -651,9 +701,17 @@ select {
     padding: 20px;
   }
 
+  .doc-hero--reader {
+    padding: 18px;
+  }
+
   .reader-shell {
-    position: static;
     padding: 20px;
+  }
+
+  .canvas-stage {
+    height: 76vh;
+    padding: 14px;
   }
 
   .hero__copy h1,
